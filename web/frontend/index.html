@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLIP Search - Semantic Image Search</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=5">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>🔍 CLIP Semantic Search</h1>
+            <div class="status" id="status">
+                <span class="status-indicator"></span>
+                <span class="status-text">Loading...</span>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main">
+            <!-- Search Configuration -->
+            <section class="search-config">
+                <div class="config-section">
+                    <!-- Query Input (top) -->
+                    <div class="form-group">
+                        <label for="query">Search Query</label>
+                        <input type="text" id="query" class="form-control" placeholder="e.g., person in red jacket">
+                    </div>
+
+                    <!-- Search Button -->
+                    <button id="search-btn" class="btn btn-primary">
+                        <span class="btn-text">Search</span>
+                        <span class="btn-loading" style="display: none;">Searching...</span>
+                    </button>
+
+                    <div class="config-divider"></div>
+                    <h3>Configuration</h3>
+
+                    <!-- Mode Selection -->
+                    <div class="form-group">
+                        <label>Mode</label>
+                        <div class="mode-toggle">
+                            <button class="mode-btn active" data-mode="single">Single Model</button>
+                            <button class="mode-btn" data-mode="compare">Compare Models</button>
+                        </div>
+                    </div>
+
+                    <!-- Single Model Mode -->
+                    <div id="single-mode" class="mode-content">
+                        <div class="form-group">
+                            <label for="dataset">Dataset</label>
+                            <select id="dataset" class="form-control">
+                                <option value="">Loading datasets...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="model1">Model</label>
+                            <select id="model1" class="form-control">
+                                <option value="">Loading models...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="lora1">LoRA Adapter (Optional)</label>
+                            <select id="lora1" class="form-control">
+                                <option value="">None</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Compare Mode: each slot has its own dataset + model -->
+                    <div id="compare-mode" class="mode-content" style="display: none;">
+                        <div class="comparison-models">
+                            <!-- Slot 1 -->
+                            <div class="compare-model">
+                                <h4>Model 1</h4>
+                                <div class="form-group">
+                                    <label for="compare-dataset1">Dataset</label>
+                                    <select id="compare-dataset1" class="form-control compare-dataset" data-slot="1">
+                                        <option value="">Loading...</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="compare-model1">Model</label>
+                                    <select id="compare-model1" class="form-control">
+                                        <option value="">Select dataset first</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="compare-lora1">LoRA</label>
+                                    <select id="compare-lora1" class="form-control">
+                                        <option value="">None</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Slot 2 -->
+                            <div class="compare-model">
+                                <h4>Model 2</h4>
+                                <div class="form-group">
+                                    <label for="compare-dataset2">Dataset</label>
+                                    <select id="compare-dataset2" class="form-control compare-dataset" data-slot="2">
+                                        <option value="">Loading...</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="compare-model2">Model</label>
+                                    <select id="compare-model2" class="form-control">
+                                        <option value="">Select dataset first</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="compare-lora2">LoRA</label>
+                                    <select id="compare-lora2" class="form-control">
+                                        <option value="">None</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Top K -->
+                    <div class="form-group">
+                        <label for="topk">Results per model</label>
+                        <input type="number" id="topk" class="form-control" value="20" min="1" max="100">
+                    </div>
+                </div>
+            </section>
+
+            <!-- Results -->
+            <section class="results-section">
+                <div id="results-container">
+                    <div class="welcome">
+                        <h2>Welcome to CLIP Semantic Search</h2>
+                        <p>Select a dataset and model, then enter your search query to get started.</p>
+                        <div class="example-queries">
+                            <h3>Example Queries:</h3>
+                            <ul>
+                                <li>"person in red jacket"</li>
+                                <li>"blue Tesla Model 3"</li>
+                                <li>"people walking"</li>
+                                <li>"person with umbrella"</li>
+                                <li>"car parked"</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Image Modal -->
+    <div id="image-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <img id="modal-image" src="" alt="Full size image">
+            <div class="modal-info">
+                <p><strong>Rank:</strong> <span id="modal-rank"></span></p>
+                <p><strong>Score:</strong> <span id="modal-score"></span></p>
+                <p><strong>Path:</strong> <span id="modal-path"></span></p>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js?v=5"></script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Model files
+models/*.onnx
+models/*.trt
+models/*.pt
+models/*.pth
+*.safetensors
+
+# Data (privacy-sensitive: surveillance imagery, embeddings, metadata)
+data/
+thumbnails/
+embeddings/
+*.faiss
+*.db
+*.sqlite
+*.index
+# Image files (may contain surveillance subjects / test fixtures)
+*.jpg
+*.jpeg
+*.png
+# Pipeline outputs & dataset metadata (leaks local paths + capture timestamps)
+scripts/out/
+scripts/crowhuman_embedding/
+
+# Logs
+logs/
+*.log
+
+# Environment
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Temporary files
+tmp/
+temp/
+*.tmp
