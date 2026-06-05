@@ -1,8 +1,9 @@
 # CLIP-Based Surveillance Smart Search System
 ## Project Plan
 
-**Version:** 2.0  
-**Last Updated:** 2026-06-01  
+**Release:** v0.2.0  
+**Plan revision:** 2.0  
+**Last Updated:** 2026-06-05  
 **Status:** Phase 2/3 — model selected & PN demo running; designing the production vector DB
 
 ---
@@ -12,9 +13,9 @@
 **Model selection and PN feasibility are complete.** What's done:
 - **Model decided: SigLIP2-L/16-256** (HuggingFace weights, TensorRT FP16 via torch2trt) — **3,145 img/min, cos 0.999974** vs FP32 on the Jetson Orin Nano. **SigLIP2-L/16-384** (1,151 img/min) is the planned future swap. Chosen after a full EVA-02 + SigLIP2 sweep — see **[docs/JETSON_BENCHMARK_2026.md](./docs/JETSON_BENCHMARK_2026.md)**.
 - **Desktop model-comparison tool** (`web/`) used to compare 8 indexed models on CrowdHuman and drive the accuracy decision.
-- **PN end-to-end demo running** (`web_pn/pn_app.py`): TRT SigLIP2-256 image index + HF text-tower query path, LAN-accessible. Model-swappable via a single `PROFILE` dict.
+- **PN end-to-end demo running** (`pn/web_pn/pn_app.py`): TRT SigLIP2-256 image index + HF text-tower query path, LAN-accessible. Model-swappable via a single `PROFILE` dict.
 - **Real-decode benchmark on the PN**: ~98 ms/image serial (decode+resize+encode); production will parallelize across HW-decode / CPU-resize / GPU-encode.
-- **Repeatable production install scripts** (`scripts/setup_model.sh`, `scripts/setup_db.sh`), clean-room tested, with a `TARGET=user` (non-venv) option.
+- **Repeatable production install scripts** (`pn/setup/setup_model.sh`, `pn/setup/setup_db.sh`), clean-room tested, with a `TARGET=user` (non-venv) option.
 - **FAISS: CPU-first** (`IndexFlatIP` at demo scale).
 
 **Active work (next):** the production vector-DB layer — SQLite metadata joined to FAISS via int64 IDs (`IndexIDMap2`), **daily time-shards**, `IndexIVFPQ` compression at scale, retention by dropping oldest shards, and streaming ingest concurrent with search (immutable history shards + one writable active shard). Design under discussion.

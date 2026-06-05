@@ -127,14 +127,14 @@ See [PROJECT_PLAN.md](./PROJECT_PLAN.md) for detailed phase breakdown. Summary:
 
 1. **Phase 1**: Model setup and TensorRT optimization on Jetson — ✅ **DONE** (SigLIP2-L-256 selected; full sweep in [docs/JETSON_BENCHMARK_2026.md](./docs/JETSON_BENCHMARK_2026.md))
 2. **Phase 2**: Thumbnail encoding pipeline and storage — 🔄 **IN PROGRESS** (PN demo runs end-to-end on a static CrowdHuman index; production DB layer is the active design topic — see below)
-3. **Phase 3**: Search backend and vector search optimization — 🔄 query path works on the PN (`web_pn/pn_app.py`); IVFPQ/sharding pending
+3. **Phase 3**: Search backend and vector search optimization — 🔄 query path works on the PN (`pn/web_pn/pn_app.py`); IVFPQ/sharding pending
 4. **Phase 4**: GN-PN integration and thumbnail streaming — ⬜ not started
 5. **Phase 5**: Web UI for search and video playback — ⬜ desktop comparison UI exists (`web/`); GN-side UI not started
 6. **Phase 6**: Production optimization and monitoring — ⬜ not started
 
 Current Phase: **Phase 2/3 — designing the production vector DB (time-sharded SQLite + FAISS IVFPQ, streaming ingest).** Model selection, PN feasibility, TRT conversion, install scripts, and an end-to-end PN search demo are all complete.
 
-> **Note on repo scope:** this repo currently serves two things — (1) a **desktop CLIP model-comparison tool** (`web/`, RTX GPU) used to pick the model, and (2) the **PN deployment** (`web_pn/`, `scripts/setup_*.sh`, benchmark doc) targeting the Jetson. CLAUDE.md/PROJECT_PLAN describe the surveillance product; the desktop tool is the evaluation harness that fed the model decision.
+> **Note on repo scope:** this repo currently serves two things — (1) a **desktop CLIP model-comparison tool** (`web/`, RTX GPU) used to pick the model, and (2) the **PN deployment** (`pn/` — maps 1:1 to `PN:~/clip_search/`) targeting the Jetson. CLAUDE.md/PROJECT_PLAN describe the surveillance product; the desktop tool is the evaluation harness that fed the model decision.
 
 ## Key Technical Constraints
 
@@ -235,4 +235,4 @@ trtexec --onnx=models/eva02.onnx --saveEngine=models/eva02.trt --fp16
 ## Contact
 
 Project Owner: chinghokuk@gmail.com  
-Last Updated: 2026-06-01
+Last Updated: 2026-06-05

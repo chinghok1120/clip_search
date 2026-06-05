@@ -2,17 +2,18 @@
 
 Semantic video search system for multi-camera surveillance. Search surveillance footage using natural language queries like "woman in red dress" instead of manually reviewing hours of video.
 
-## Project Status (2026-06-01)
+## Project Status (2026-06-05)
 
+**Version**: v0.2.0  
 **Phase**: 2/3 — model selected & PN demo running; designing the production vector DB.  
 **Deployed model**: **SigLIP2-L/16-256** (HuggingFace, TensorRT FP16 via torch2trt) — chosen after a full Jetson sweep. 384px is the future swap; the system is built model-swappable.  
 **PN (Jetson Orin Nano)**: **3,145 img/min**, cos 0.999974 vs FP32, 2.3 GB — clears the 960 img/min target with headroom.  
-**Done**: model decision, TRT conversion, repeatable install scripts (`scripts/setup_*.sh`), real-decode benchmark (~98 ms/img serial), end-to-end PN search demo (`web_pn/pn_app.py`).  
+**Done**: model decision, TRT conversion, repeatable install scripts (`pn/setup/*.sh`), real-decode benchmark (~98 ms/img serial), end-to-end PN search demo (`pn/web_pn/pn_app.py`).  
 **Next**: production vector DB — time-sharded SQLite + FAISS IVFPQ, streaming ingest.  
 
 **Jetson benchmark report**: See **[docs/JETSON_BENCHMARK_2026.md](./docs/JETSON_BENCHMARK_2026.md)** (the model-selection source of truth).
 
-> This repo holds two tracks: a **desktop CLIP model-comparison tool** (`web/`, RTX GPU) used to choose the model, and the **PN deployment** (`web_pn/`, `scripts/`) targeting the Jetson. The RTX benchmarks below are from the desktop evaluation harness.
+> This repo holds two tracks: a **desktop CLIP model-comparison tool** (`web/`, RTX GPU) used to choose the model, and the **PN deployment** (`pn/`, which maps 1:1 to `PN:~/clip_search/` — deploy by syncing the folder) targeting the Jetson. The RTX benchmarks below are from the desktop evaluation harness.
 
 ## Quick Start
 
@@ -157,7 +158,7 @@ clip_search/
 - [x] TensorRT FP16 conversion (torch2trt) on the PN
 - [x] Repeatable install scripts (`setup_model.sh`, `setup_db.sh`), clean-room tested
 - [x] Real-decode benchmark on the PN (~98 ms/img serial)
-- [x] End-to-end PN search demo (`web_pn/pn_app.py`)
+- [x] End-to-end PN search demo (`pn/web_pn/pn_app.py`)
 
 ### Active — production vector DB (designing now)
 - [ ] SQLite metadata joined to FAISS via int64 IDs (`IndexIDMap2`)
@@ -265,4 +266,4 @@ Proprietary - Internal use only
 ## Contact
 
 Project Lead: chinghokuk@gmail.com  
-Last Updated: 2026-06-01
+Last Updated: 2026-06-05
