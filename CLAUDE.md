@@ -14,31 +14,34 @@ This project implements a semantic video search system for multi-camera surveill
 ### Key Architectural Decisions
 1. **Text encoding happens on PN** (GN has no GPU)
 2. **Vector database stored on PN** (initially - may move to GN later)
-3. **Model: EVA-02-L/14** via OpenCLIP (balance of accuracy and Jetson performance)
+3. **Model: SigLIP2-L/16-256** (HuggingFace weights, TensorRT FP16 via torch2trt) — selected over EVA-02 after a full Jetson benchmark sweep (see [docs/JETSON_BENCHMARK_2026.md](./docs/JETSON_BENCHMARK_2026.md)). **SigLIP2-L/16-384** is the planned future swap. The system is built model-swappable (single `PROFILE` dict; main swap cost is re-indexing).
 4. **Communication: REST API** between GN and PN
-5. **Vector DB: FAISS-GPU** for fast similarity search on Jetson
+5. **Vector DB: FAISS (CPU-first)** — `IndexFlatIP` at demo scale, `IndexIVFPQ` + daily time-shards at production scale. GPU search is a later option (GPU is reserved for encoding).
 
 ## Technical Stack
 
 ### PN (Processing Node)
-- **Hardware**: NVIDIA Jetson Orin Nano 16GB
-- **Model**: EVA-02-L/14 (336px) - OpenCLIP pretrained
-- **Optimization**: TensorRT (FP16/INT8 quantization)
-- **Vector Search**: FAISS-GPU (IndexFlatIP → IndexIVFPQ for scale)
-- **Metadata DB**: SQLite (camera_id, timestamp, thumbnail_path)
+- **Hardware**: NVIDIA Jetson Orin Nano 16GB (host `PNServer`, `superrx@210.17.139.83`)
+- **Model**: SigLIP2-L/16-256 (HuggingFace `google/siglip2-large-patch16-256`), 1024-dim embeddings
+- **Optimization**: TensorRT FP16 via **torch2trt** (eager attention) — 3,145 img/min, cos 0.999974 vs FP32. INT8 ruled out on this board (§7/§12 of benchmark doc).
+- **Vector Search**: FAISS **CPU** (IndexFlatIP now → IndexIVFPQ + daily shards for scale)
+- **Metadata DB**: SQLite (camera_id, timestamp, thumbnail_path) joined to FAISS via int64 IDs
 - **API**: FastAPI + uvicorn
-- **Language**: Python 3.8+
+- **Language**: Python 3.10 (PN venv with `--system-site-packages` for CUDA torch); 3.8+ elsewhere
+- **Pinned deps**: `transformers==4.51.3`, `numpy<2` (torch 2.3 compatibility)
 
 ### Key Libraries
 ```
-open_clip_torch     # EVA-02-L/14 CLIP model
-torch               # PyTorch inference
-tensorrt            # Model optimization for Jetson
-faiss-gpu           # Vector similarity search
-fastapi             # REST API framework
-pillow              # Image preprocessing
-numpy               # Array operations
-sqlite3             # Metadata storage
+transformers==4.51.3  # SigLIP2 model + tokenizer (HF); pinned for torch 2.3
+torch                 # PyTorch inference
+torch2trt             # TensorRT conversion (NVIDIA-AI-IOT) — the working SigLIP TRT path
+tensorrt              # Model optimization for Jetson
+faiss-cpu             # Vector similarity search (CPU-first)
+fastapi               # REST API framework
+pillow                # Image preprocessing
+numpy<2               # Array operations (torch 2.3 compatibility)
+sqlite3               # Metadata storage
+open_clip_torch       # used on the desktop model-comparison tool (EVA-02, ViT-H/bigG, SigLIP2)
 ```
 
 ### GN (Gateway/NVR)
@@ -122,14 +125,16 @@ clip_search/
 
 See [PROJECT_PLAN.md](./PROJECT_PLAN.md) for detailed phase breakdown. Summary:
 
-1. **Phase 1 (Weeks 1-2)**: Model setup and TensorRT optimization on Jetson
-2. **Phase 2 (Weeks 3-4)**: Thumbnail encoding pipeline and storage
-3. **Phase 3 (Weeks 5-6)**: Search backend and vector search optimization
-4. **Phase 4 (Weeks 7-8)**: GN-PN integration and thumbnail streaming
-5. **Phase 5 (Weeks 9-10)**: Web UI for search and video playback
-6. **Phase 6 (Weeks 11-12)**: Production optimization and monitoring
+1. **Phase 1**: Model setup and TensorRT optimization on Jetson — ✅ **DONE** (SigLIP2-L-256 selected; full sweep in [docs/JETSON_BENCHMARK_2026.md](./docs/JETSON_BENCHMARK_2026.md))
+2. **Phase 2**: Thumbnail encoding pipeline and storage — 🔄 **IN PROGRESS** (PN demo runs end-to-end on a static CrowdHuman index; production DB layer is the active design topic — see below)
+3. **Phase 3**: Search backend and vector search optimization — 🔄 query path works on the PN (`web_pn/pn_app.py`); IVFPQ/sharding pending
+4. **Phase 4**: GN-PN integration and thumbnail streaming — ⬜ not started
+5. **Phase 5**: Web UI for search and video playback — ⬜ desktop comparison UI exists (`web/`); GN-side UI not started
+6. **Phase 6**: Production optimization and monitoring — ⬜ not started
 
-Current Phase: **Planning / Phase 1 preparation**
+Current Phase: **Phase 2/3 — designing the production vector DB (time-sharded SQLite + FAISS IVFPQ, streaming ingest).** Model selection, PN feasibility, TRT conversion, install scripts, and an end-to-end PN search demo are all complete.
+
+> **Note on repo scope:** this repo currently serves two things — (1) a **desktop CLIP model-comparison tool** (`web/`, RTX GPU) used to pick the model, and (2) the **PN deployment** (`web_pn/`, `scripts/setup_*.sh`, benchmark doc) targeting the Jetson. CLAUDE.md/PROJECT_PLAN describe the surveillance product; the desktop tool is the evaluation harness that fed the model decision.
 
 ## Key Technical Constraints
 
@@ -230,4 +235,4 @@ trtexec --onnx=models/eva02.onnx --saveEngine=models/eva02.trt --fp16
 ## Contact
 
 Project Owner: chinghokuk@gmail.com  
-Last Updated: 2026-05-12
+Last Updated: 2026-06-01

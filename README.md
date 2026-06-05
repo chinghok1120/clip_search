@@ -1,18 +1,18 @@
 # CLIP-Based Surveillance Smart Search System
 
-Semantic video search system for multi-camera surveillance using CLIP (EVA-02-B/14 model). Search surveillance footage using natural language queries like "woman in red dress" instead of manually reviewing hours of video.
+Semantic video search system for multi-camera surveillance. Search surveillance footage using natural language queries like "woman in red dress" instead of manually reviewing hours of video.
 
-## Project Status
+## Project Status (2026-06-01)
 
-**Current Phase**: Phase 1 - Model Setup & Benchmarking ✅ **COMPLETE**  
-**Model**: EVA-02-B/14 (149.7M parameters)  
-**Framework**: OpenCLIP  
-**GPU**: NVIDIA RTX 3090 (580.142 driver, CUDA 13.0)  
-**Status**: ✅ Model verified and working perfectly on GPU  
-**Performance**: 21,597 img/min (22× above target of 960 img/min)  
-**Next**: Phase 2 - Build encoding service
+**Phase**: 2/3 — model selected & PN demo running; designing the production vector DB.  
+**Deployed model**: **SigLIP2-L/16-256** (HuggingFace, TensorRT FP16 via torch2trt) — chosen after a full Jetson sweep. 384px is the future swap; the system is built model-swappable.  
+**PN (Jetson Orin Nano)**: **3,145 img/min**, cos 0.999974 vs FP32, 2.3 GB — clears the 960 img/min target with headroom.  
+**Done**: model decision, TRT conversion, repeatable install scripts (`scripts/setup_*.sh`), real-decode benchmark (~98 ms/img serial), end-to-end PN search demo (`web_pn/pn_app.py`).  
+**Next**: production vector DB — time-sharded SQLite + FAISS IVFPQ, streaming ingest.  
 
-**Verification Report**: See [docs/MODEL_VERIFICATION_REPORT.md](./docs/MODEL_VERIFICATION_REPORT.md)
+**Jetson benchmark report**: See **[docs/JETSON_BENCHMARK_2026.md](./docs/JETSON_BENCHMARK_2026.md)** (the model-selection source of truth).
+
+> This repo holds two tracks: a **desktop CLIP model-comparison tool** (`web/`, RTX GPU) used to choose the model, and the **PN deployment** (`web_pn/`, `scripts/`) targeting the Jetson. The RTX benchmarks below are from the desktop evaluation harness.
 
 ## Quick Start
 
@@ -141,37 +141,34 @@ clip_search/
 
 ## Technology Stack
 
-- **Model**: EVA-02-B/14 (149M params, 512-dim embeddings)
-- **Framework**: OpenCLIP 3.3.0
-- **ML**: PyTorch 2.5.1 + CUDA 12.1
-- **Vector DB**: FAISS (GPU-accelerated)
-- **API**: FastAPI (planned)
+- **Deployed model**: SigLIP2-L/16-256 (HF `google/siglip2-large-patch16-256`, 1024-dim), TensorRT FP16 via torch2trt
+- **Evaluation harness**: OpenCLIP (EVA-02-B/L, ViT-H/14, ViT-bigG/14, SigLIP2-B/L/SO400M) on the desktop tool
+- **ML (PN)**: PyTorch 2.3 (Jetson CUDA build), `transformers==4.51.3`, `numpy<2`
+- **Vector DB**: FAISS **CPU** (IndexFlatIP now → IndexIVFPQ + daily shards at scale)
+- **API**: FastAPI + uvicorn
 - **Database**: SQLite (metadata)
-- **Platform**: Jetson Orin Nano 16GB (target), Linux PC (development)
+- **Platform**: Jetson Orin Nano 16GB (PN target), Linux PC + RTX (development/eval)
 
 ## Next Steps
 
-### Immediate (Phase 1 - Week 1)
-- [x] Setup development environment
-- [x] Install PyTorch + OpenCLIP
-- [x] Load EVA-02-B/14 model
-- [x] Benchmark on CPU
-- [ ] Enable GPU and benchmark
-- [ ] Test with real surveillance thumbnails
-- [ ] Export model to ONNX
-- [ ] Convert to TensorRT (for Jetson)
+### Done
+- [x] Desktop model-comparison tool; 8 models indexed on CrowdHuman
+- [x] Full Jetson benchmark sweep → **SigLIP2-L-256 selected**
+- [x] TensorRT FP16 conversion (torch2trt) on the PN
+- [x] Repeatable install scripts (`setup_model.sh`, `setup_db.sh`), clean-room tested
+- [x] Real-decode benchmark on the PN (~98 ms/img serial)
+- [x] End-to-end PN search demo (`web_pn/pn_app.py`)
 
-### Short-term (Phase 1 - Week 2)
-- [ ] Implement image preprocessing pipeline
-- [ ] Create embedding storage (FAISS index)
-- [ ] Build basic search functionality
-- [ ] Benchmark on Jetson Orin Nano
+### Active — production vector DB (designing now)
+- [ ] SQLite metadata joined to FAISS via int64 IDs (`IndexIDMap2`)
+- [ ] Daily time-shards; retention by dropping oldest shard files
+- [ ] `IndexIVFPQ` compression at scale
+- [ ] Streaming ingest concurrent with search (immutable history + active shard)
 
-### Medium-term (Phase 2-3)
-- [ ] Build thumbnail encoding service (REST API)
-- [ ] Implement batch processing queue
-- [ ] Create search API with filtering
-- [ ] Integrate with GN (thumbnail upload)
+### Next
+- [ ] Parallel ingest pipeline (HW decode / CPU resize / GPU encode)
+- [ ] Search API with filtering (camera, time range, threshold)
+- [ ] GN↔PN integration (thumbnail upload) + GN-side search UI
 
 ## Requirements
 
@@ -268,4 +265,4 @@ Proprietary - Internal use only
 ## Contact
 
 Project Lead: chinghokuk@gmail.com  
-Last Updated: 2026-05-12
+Last Updated: 2026-06-01

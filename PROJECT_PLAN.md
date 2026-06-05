@@ -1,15 +1,31 @@
 # CLIP-Based Surveillance Smart Search System
 ## Project Plan
 
-**Version:** 1.0  
-**Last Updated:** 2026-05-12  
-**Status:** Planning Phase
+**Version:** 2.0  
+**Last Updated:** 2026-06-01  
+**Status:** Phase 2/3 — model selected & PN demo running; designing the production vector DB
+
+---
+
+## Current Status (2026-06-01)
+
+**Model selection and PN feasibility are complete.** What's done:
+- **Model decided: SigLIP2-L/16-256** (HuggingFace weights, TensorRT FP16 via torch2trt) — **3,145 img/min, cos 0.999974** vs FP32 on the Jetson Orin Nano. **SigLIP2-L/16-384** (1,151 img/min) is the planned future swap. Chosen after a full EVA-02 + SigLIP2 sweep — see **[docs/JETSON_BENCHMARK_2026.md](./docs/JETSON_BENCHMARK_2026.md)**.
+- **Desktop model-comparison tool** (`web/`) used to compare 8 indexed models on CrowdHuman and drive the accuracy decision.
+- **PN end-to-end demo running** (`web_pn/pn_app.py`): TRT SigLIP2-256 image index + HF text-tower query path, LAN-accessible. Model-swappable via a single `PROFILE` dict.
+- **Real-decode benchmark on the PN**: ~98 ms/image serial (decode+resize+encode); production will parallelize across HW-decode / CPU-resize / GPU-encode.
+- **Repeatable production install scripts** (`scripts/setup_model.sh`, `scripts/setup_db.sh`), clean-room tested, with a `TARGET=user` (non-venv) option.
+- **FAISS: CPU-first** (`IndexFlatIP` at demo scale).
+
+**Active work (next):** the production vector-DB layer — SQLite metadata joined to FAISS via int64 IDs (`IndexIDMap2`), **daily time-shards**, `IndexIVFPQ` compression at scale, retention by dropping oldest shards, and streaming ingest concurrent with search (immutable history shards + one writable active shard). Design under discussion.
+
+**Not started:** GN↔PN integration/API, GN-side search UI, monitoring.
 
 ---
 
 ## Executive Summary
 
-Building a semantic video search system for multi-camera surveillance using CLIP (EVA-02-L/14 model). The system enables users to search hours of surveillance footage using natural language queries like "woman in red dress" by encoding camera thumbnails and matching them against text embeddings.
+Building a semantic video search system for multi-camera surveillance using CLIP. The system enables users to search hours of surveillance footage using natural language queries like "woman in red dress" by encoding camera thumbnails and matching them against text embeddings. **Deployed model: SigLIP2-L/16-256** (the original plan targeted EVA-02-L/14; the Jetson benchmark sweep moved the decision to SigLIP2 — see Current Status above).
 
 ### System Overview
 - **GN (Gateway/NVR)**: Records 8-32 cameras (H.264/H.265), generates thumbnails every 2 seconds per camera (640×360 JPEG), provides web interface for search
@@ -48,13 +64,13 @@ Building a semantic video search system for multi-camera surveillance using CLIP
 ## Technical Stack
 
 ### PN (Processing Node)
-- **Hardware**: NVIDIA Jetson Orin Nano (16GB RAM, 1024-core Ampere GPU)
-- **Model**: EVA-02-L/14 (336px) - OpenCLIP pretrained weights
-- **Inference**: TensorRT optimization (FP16/INT8)
-- **Vector Database**: FAISS-GPU (for fast similarity search)
-- **Metadata Database**: SQLite or PostgreSQL (camera_id, timestamp, thumbnail_path)
-- **API Framework**: FastAPI or Flask
-- **Language**: Python 3.8+
+- **Hardware**: NVIDIA Jetson Orin Nano (16GB RAM, 1024-core Ampere GPU). **Must run MAXN + `jetson_clocks`** (default 25W mode halves the GPU clock → ~2× slower).
+- **Model**: SigLIP2-L/16-256 (HuggingFace `google/siglip2-large-patch16-256`), 1024-dim embeddings. 384px variant is the future swap.
+- **Inference**: TensorRT **FP16 via torch2trt** (eager attention). INT8 ruled out on this board (accuracy collapse + no speedup — see benchmark §7/§12).
+- **Vector Database**: FAISS **CPU** (`IndexFlatIP` → `IndexIVFPQ` + daily shards for scale)
+- **Metadata Database**: SQLite (camera_id, timestamp, thumbnail_path), joined to FAISS by int64 ID
+- **API Framework**: FastAPI + uvicorn
+- **Language**: Python 3.10 (PN venv built `--system-site-packages` to inherit CUDA torch 2.3); pinned `transformers==4.51.3`, `numpy<2`
 
 ### GN (Gateway/NVR)
 - **Thumbnail Generation**: Extract from video stream every 2 seconds
@@ -75,8 +91,9 @@ Building a semantic video search system for multi-camera surveillance using CLIP
 
 ## Implementation Phases
 
-### Phase 1: Model Setup & Optimization (Week 1-2)
-**Goal**: Get EVA-02-L/14 running efficiently on Jetson Orin Nano
+### Phase 1: Model Setup & Optimization (Week 1-2) — ✅ COMPLETE
+**Goal**: Get the encoder running efficiently on Jetson Orin Nano
+**Outcome**: SigLIP2-L-256 on TRT FP16 (torch2trt), 3,145 img/min, cos 0.999974. Full sweep + TRT/INT8 findings in [docs/JETSON_BENCHMARK_2026.md](./docs/JETSON_BENCHMARK_2026.md).
 
 - [ ] Set up Jetson Orin Nano development environment
 - [ ] Install PyTorch, TensorRT, CUDA dependencies
@@ -92,8 +109,9 @@ Building a semantic video search system for multi-camera surveillance using CLIP
 - TensorRT-optimized text encoder
 - Benchmark report (throughput, latency, memory usage)
 
-### Phase 2: Embedding Pipeline (Week 3-4)
+### Phase 2: Embedding Pipeline (Week 3-4) — 🔄 IN PROGRESS
 **Goal**: Build thumbnail ingestion and encoding service
+**Status**: offline batch encode + index build work on the PN (static CrowdHuman demo); the **streaming ingest + production storage schema below is the active design**. Real-decode benchmarked at ~98 ms/image serial; production pipeline must parallelize decode/resize/encode.
 
 - [ ] Design REST API for thumbnail ingestion
   - `POST /encode/image` - accepts JPEG, returns embedding + ID
@@ -111,8 +129,9 @@ Building a semantic video search system for multi-camera surveillance using CLIP
 - FAISS vector index with metadata DB
 - Performance metrics dashboard
 
-### Phase 3: Search Backend (Week 5-6)
+### Phase 3: Search Backend (Week 5-6) — 🔄 IN PROGRESS
 **Goal**: Implement semantic search functionality
+**Status**: text→image query path works on the PN (`web_pn/pn_app.py`, HF text tower into the TRT image space). Filtering, IVFPQ tuning, and sharded search still to do.
 
 - [ ] Design search API
   - `POST /search/text` - accepts query text, returns top-K results
@@ -209,11 +228,13 @@ Building a semantic video search system for multi-camera surveillance using CLIP
 
 ## Database Design
 
+> **⚠️ Under active design (2026-06-01).** The schema below is the original sketch. The production direction now being worked out: FAISS holds only vectors + int64 IDs (`IndexIDMap2`), joined to SQLite for metadata; **daily time-shards** with retention by dropping the oldest shard files (FAISS in-place delete is O(N)); **`IndexIVFPQ`** compression once a shard exceeds memory; streaming ingest via an **immutable-history + one writable active shard** pattern (FAISS isn't thread-safe for concurrent add+search). To be finalized in discussion, then this section updated.
+
 ### Vector Storage (FAISS)
-- **Index Type**: `IndexFlatIP` (inner product, exact search) for <100K embeddings
-- **Index Type**: `IndexIVFPQ` (inverted file + product quantization) for >1M embeddings
-- **Embedding Dimension**: 768 or 1024 (depends on EVA-02-L/14 output)
-- **Storage Size**: ~1KB per embedding × retention period
+- **Index Type**: `IndexFlatIP` (inner product, exact search) for <100K embeddings — current demo
+- **Index Type**: `IndexIVFPQ` (inverted file + product quantization) for large/sharded scale
+- **Embedding Dimension**: **1024** (SigLIP2-L/16 output)
+- **Storage Size**: ~4 KB/vector flat fp32 (1024-dim); ~32–64 B/vector under PQ compression
 
 ### Metadata Database Schema
 
@@ -377,13 +398,13 @@ Response: Prometheus-formatted metrics
 - Lower latency for search
 **Future**: Evaluate GN storage if PN runs out of space or need centralized access
 
-### Decision 3: Model Selection
-**Decision**: EVA-02-L/14 (336px) via OpenCLIP  
+### Decision 3: Model Selection — UPDATED 2026-06-01
+**Decision**: **SigLIP2-L/16-256** (HuggingFace weights), TensorRT FP16 via torch2trt. 384px variant reserved as a future swap; system is built model-swappable.  
 **Rationale**: 
-- State-of-the-art CLIP variant
-- Good balance of accuracy and speed
-- Fits on Jetson Orin Nano with TensorRT
-**Alternative**: EVA-02-B/14 if L/14 is too slow
+- Full Jetson sweep (EVA-02-B/L, ViT-H, ViT-bigG, SigLIP2-B/L/SO400M) found SigLIP2-L-256 to be the best-accuracy config that clears all throughput targets: **3,145 img/min** at **cos 0.999974** vs FP32, 2.3 GB.
+- EVA-02-L/14-336 (the original pick) **cannot reach 960 img/min** (786 max, FP16 TRT); INT8 is a dead end on this board.
+- SigLIP2 gives richer embeddings (1024-dim) than EVA-02-L (768) / EVA-02-B (512).
+**Original plan**: EVA-02-L/14 (336px) via OpenCLIP — superseded. Full analysis in [docs/JETSON_BENCHMARK_2026.md](./docs/JETSON_BENCHMARK_2026.md).
 
 ### Decision 4: Vector Index Type
 **Decision**: Start with `IndexFlatIP`, migrate to `IndexIVFPQ` when >100K embeddings  
