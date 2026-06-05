@@ -78,3 +78,13 @@ htmlcov/
 tmp/
 temp/
 *.tmp
+
+# PN artifact layer (generated on the Jetson, never committed; see pn/.deployignore)
+*.pth
+*.engine
+*.npy
+pn/**/venv/
+pn/bench/dbbench/lancedb/
+pn/bench/dbbench/qdrant_storage/
+pn/bench/dbbench/snapshots/
+qdrant_bin/

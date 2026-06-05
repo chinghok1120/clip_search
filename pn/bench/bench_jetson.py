@@ -28,7 +28,11 @@ def main():
     model = model.to(dev).eval()
     if use_fp16:
         model = model.half()
-    tokenizer = open_clip.get_tokenizer(args.model)
+    try:
+        tokenizer = open_clip.get_tokenizer(args.model)
+    except Exception as e:
+        tokenizer = None
+        print(f"(tokenizer unavailable -> text encode will be skipped: {type(e).__name__}: {e})")
     # infer input resolution from preprocess
     res = preprocess.transforms[0].size
     res = res if isinstance(res, int) else res[0]
@@ -62,17 +66,20 @@ def main():
 
     # ---------- TEXT ENCODE LATENCY ----------
     print("=" * 70)
-    toks = tokenizer(["a woman in a blue dress walking through a crowd"]).to(dev)
-    with torch.no_grad():
-        for _ in range(args.warmup):
-            _ = model.encode_text(toks)
-        sync()
-        ts = []
-        for _ in range(args.iters):
-            s = time.time(); _ = model.encode_text(toks); sync()
-            ts.append(time.time() - s)
-    print(f"Text encode (1 query): median {statistics.median(ts)*1000:.1f} ms | "
-          f"p95 {sorted(ts)[int(0.95*len(ts))]*1000:.1f} ms")
+    if tokenizer is not None:
+        toks = tokenizer(["a woman in a blue dress walking through a crowd"]).to(dev)
+        with torch.no_grad():
+            for _ in range(args.warmup):
+                _ = model.encode_text(toks)
+            sync()
+            ts = []
+            for _ in range(args.iters):
+                s = time.time(); _ = model.encode_text(toks); sync()
+                ts.append(time.time() - s)
+        print(f"Text encode (1 query): median {statistics.median(ts)*1000:.1f} ms | "
+              f"p95 {sorted(ts)[int(0.95*len(ts))]*1000:.1f} ms")
+    else:
+        print("Text encode: SKIPPED (no tokenizer; SigLIP needs `transformers` installed)")
     print(f"Total peak GPU mem this run: {torch.cuda.max_memory_allocated()/1e6:.0f} MB")
 
 if __name__ == "__main__":

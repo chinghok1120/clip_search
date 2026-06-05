@@ -1,0 +1,36 @@
+# rsync excludes for deploy.sh — the PN "artifact layer".
+# These are regenerated ON the PN (setup_*.sh / encode / gen_data), so they are never
+# synced from the repo, and rsync --delete will NOT remove them on the PN.
+
+# environments + model weights (rebuilt by setup_model.sh / setup_db.sh)
+venv/
+venv_dbbench/
+*.pth
+*.engine
+
+# demo index + embeddings (rebuilt by encode_images_trt.py + build_faiss_index.py)
+embeddings/
+
+# downloaded binaries
+qdrant_bin/
+
+# engine-validation fixtures
+val_input384.npy
+val_ref384.npy
+
+# generated DB-benchmark data (kept in place; regenerate via bench/dbbench/gen_data.py).
+# NOTE: the original 1M sweep data lives at the PN's flat ~/clip_search/dbbench/ —
+# excluded so the reorg's first sync neither overwrites nor deletes those ~14 GB.
+dbbench/
+bench/dbbench/*.npy
+bench/dbbench/faiss.index
+bench/dbbench/lancedb/
+bench/dbbench/qdrant_storage/
+bench/dbbench/snapshots/
+bench/dbbench/.qdrant-initialized
+
+# python / logs / os cruft
+__pycache__/
+*.pyc
+*.log
+.DS_Store
