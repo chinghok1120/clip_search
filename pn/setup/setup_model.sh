@@ -32,9 +32,10 @@ TARGET="${TARGET:-venv}"
 NEED_GB=13                     # ~12.5 rounded up; the hard floor / warn band derive from this
 
 # ---- pretty output helpers -----------------------------------------------------------
-step() { echo; echo "── Step $1 ·············································· $2"; }
-ok()   { echo "   OK  $*"; }
-warn() { echo "   !!  $*"; }
+step()   { echo; echo "── Step $1 ·············································· $2"; }
+ok()     { echo "   OK  $*"; }
+warn()   { echo "   !!  $*"; }
+indent() { sed 's/^/   │ /'; }   # nest a sub-process's stdout/stderr under the current step
 mem_mitigations() {
   cat <<'EOF'
    ── how to free memory for the build ──────────────────────────────────
@@ -142,10 +143,10 @@ if "$PY" -c "import torch2trt, transformers, onnx" 2>/dev/null; then
 else
   step "3/4 · install conversion deps" "(~3–6 min FIRST RUN — torch2trt compiles from git)"
   echo "   installing transformers / onnx (pip wheels) ..."
-  $PIP -q "numpy<2" "transformers==4.51.3" sentencepiece onnx onnxruntime onnx_graphsurgeon
+  $PIP -q "numpy<2" "transformers==4.51.3" sentencepiece onnx onnxruntime onnx_graphsurgeon 2>&1 | indent
   echo "   building torch2trt from git (this is the slow part — please wait, not stalled) ..."
   TORCH2TRT_COMMIT="4e820ae31b4e35d59685935223b05b2e11d47b03"
-  $PIP -q "git+https://github.com/NVIDIA-AI-IOT/torch2trt.git@${TORCH2TRT_COMMIT}"
+  $PIP -q "git+https://github.com/NVIDIA-AI-IOT/torch2trt.git@${TORCH2TRT_COMMIT}" 2>&1 | indent
 fi
 
 # SAFETY: the installs above must NOT have disturbed the inherited CUDA torch / tensorrt.
@@ -162,9 +163,10 @@ PY
 step "4/4 · build TensorRT engine" "(~2 min build + ~1.2GB model download on first run)"
 echo "   converting $HF_MODEL"
 echo "   (loads FP32 model -> torch2trt FP16 -> validates cos>=0.99 -> serializes ~940MB)"
+echo "   (first run downloads the HF model ~1.2GB here — silent bar, please wait)"
 set +e
-"$PY" "$HERE/convert_siglip2.py" --hf-model "$HF_MODEL" --out "$OUT"
-RC=$?
+HF_HUB_DISABLE_PROGRESS_BARS=1 "$PY" "$HERE/convert_siglip2.py" --hf-model "$HF_MODEL" --out "$OUT" 2>&1 | indent
+RC=${PIPESTATUS[0]}      # python's real exit code, not sed's — the OOM(137) check depends on this
 set -e
 if [ "$RC" -ne 0 ]; then
   echo
