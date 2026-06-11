@@ -25,12 +25,14 @@ from transformers import AutoTokenizer, SiglipModel
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # ---- model profile (swap this dict + its index to change models) ---------------------
+# index / meta / image_dir default to the demo corpus but are overridable by env so
+# run_demo.sh can point the server at whatever --images/--name the user chose.
 PROFILE = {
     "name": "SigLIP2-L/16-256",
     "hf_model": "google/siglip2-large-patch16-256",
-    "index": os.path.join(ROOT, "embeddings/crowdhuman_siglip2-l-256-hf.faiss"),
-    "meta": os.path.join(ROOT, "embeddings/crowdhuman_siglip2-l-256-hf.json"),
-    "image_dir": os.path.expanduser("~/datasets/crowdhuman/train/images_960"),
+    "index": os.environ.get("INDEX", os.path.join(ROOT, "embeddings/crowdhuman_siglip2-l-256-hf.faiss")),
+    "meta": os.environ.get("META", os.path.join(ROOT, "embeddings/crowdhuman_siglip2-l-256-hf.json")),
+    "image_dir": os.environ.get("IMAGE_DIR", os.path.expanduser("~/datasets/crowdhuman/train/images_960")),
     "max_length": 64,
 }
 
