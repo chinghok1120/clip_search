@@ -21,12 +21,15 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from transformers import AutoTokenizer, SiglipModel
 
+# deploy root = parent of web_pn/ (this file's dir) — works whatever the folder is named
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 # ---- model profile (swap this dict + its index to change models) ---------------------
 PROFILE = {
     "name": "SigLIP2-L/16-256",
     "hf_model": "google/siglip2-large-patch16-256",
-    "index": os.path.expanduser("~/clip_search/embeddings/crowdhuman_siglip2-l-256-hf.faiss"),
-    "meta": os.path.expanduser("~/clip_search/embeddings/crowdhuman_siglip2-l-256-hf.json"),
+    "index": os.path.join(ROOT, "embeddings/crowdhuman_siglip2-l-256-hf.faiss"),
+    "meta": os.path.join(ROOT, "embeddings/crowdhuman_siglip2-l-256-hf.json"),
     "image_dir": os.path.expanduser("~/datasets/crowdhuman/train/images_960"),
     "max_length": 64,
 }

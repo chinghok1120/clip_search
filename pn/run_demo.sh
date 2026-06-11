@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Bring up the PN CLIP-search demo. Run ON the PN, from the deploy root (~/clip_search):
+# Bring up the PN CLIP-search demo. Run ON the PN, from the deploy root:
 #
 #   ./run_demo.sh                # build the index if missing, then serve on :8000
 #   PORT=8001 ./run_demo.sh      # serve on a different port

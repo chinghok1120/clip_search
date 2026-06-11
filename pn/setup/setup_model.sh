@@ -22,8 +22,9 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
+ROOT="$(dirname "$HERE")"      # deploy root (parent of setup/) — works whatever the folder is named
 HF_MODEL="${HF_MODEL:-google/siglip2-large-patch16-256}"
-OUT="${OUT:-$HOME/clip_search/siglip2_l_256_hf_fp16.pth}"
+OUT="${OUT:-$ROOT/siglip2_l_256_hf_fp16.pth}"
 TARGET="${TARGET:-venv}"
 
 # 0. resolve install target -> $PY (python) and $PIP (pip install command)
@@ -32,7 +33,7 @@ if [ "$TARGET" = "user" ]; then
   PY="python3"
   PIP="python3 -m pip install --user"
 else
-  VENV="${VENV:-$HOME/clip_search/venv}"
+  VENV="${VENV:-$ROOT/venv}"
   if [ ! -x "$VENV/bin/python" ]; then
     echo ">> creating venv $VENV (--system-site-packages to inherit JetPack torch/tensorrt)"
     python3 -m venv --system-site-packages "$VENV"
